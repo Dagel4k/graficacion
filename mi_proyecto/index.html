@@ -212,13 +212,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
         }
 
         .sidebar-header h2 {
-            font-size: 1.1rem;
+            font-size: 1rem;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 2px;
             color: var(--neon-cyan);
+            font-weight: 600;
         }
 
         .collapse-btn {
@@ -476,9 +489,16 @@
             position: relative;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8),
                         0 0 1px 1px rgba(255,255,255,0.08);
             transition: var(--transition-smooth);
+            width: 800px;
+            height: 600px;
+        }
+
+        #canvas-wrapper canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         #canvas-wrapper::before {
@@ -510,7 +530,7 @@
             border: 1px solid rgba(255,255,255,0.08);
             min-width: 280px;
             pointer-events: none;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.8), 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8),
                         inset 0 0 10px rgba(255,255,255,0.02);
             z-index: 15;
             font-family: 'Share Tech Mono', monospace;
@@ -559,64 +579,143 @@
            MEDIA QUERIES - DISEÑO RESPONSIVO MÓVIL
            ============================================================ */
         @media (max-width: 992px) {
-            /* Escritorios pequeños y Tablets */
             .sidebar {
-                position: absolute;
+                position: fixed;
                 left: 0;
                 top: 0;
                 bottom: 0;
                 height: 100%;
-                box-shadow: 10px 0 30px rgba(0,0,0,0.6);
+                width: 300px;
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .sidebar.open {
+                transform: translateX(0);
             }
             .sidebar.collapsed {
                 transform: translateX(-100%);
-                margin-left: 0;
             }
             .sidebar-tab {
-                display: none !important; /* Usar el botón de la navbar en su lugar */
+                display: none !important;
             }
             .mobile-toggle {
                 display: block;
             }
-            #canvas-wrapper {
-                transform: scale(0.9);
+
+            /* Overlay cuando sidebar está abierta */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.6);
+                z-index: 150;
+            }
+            .sidebar-overlay.active {
+                display: block;
             }
         }
 
         @media (max-width: 768px) {
-            /* Teléfonos móviles */
             header {
                 padding: 0 16px;
             }
             .logo-title {
-                font-size: 1.1rem;
+                font-size: 1rem;
+                letter-spacing: 1px;
             }
             .system-status {
-                display: none; /* Ahorrar espacio en móvil */
+                display: none;
             }
             .main-viewport {
-                padding: 10px;
+                padding: 15px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }
+
+            /* Canvas responsive sin scale feo */
             #canvas-wrapper {
-                transform: scale(0.7);
-                max-width: 100vw;
+                width: 100% !important;
+                max-width: 400px;
+                aspect-ratio: 4/3;
             }
+
+            /* HUD adaptativo */
             #hud {
-                bottom: 12px;
-                left: 12px;
-                right: 12px;
+                bottom: 8px;
+                left: 8px;
+                right: 8px;
                 min-width: 0;
-                padding: 12px;
+                padding: 12px 10px;
+                border-radius: 6px;
             }
             .hud-metric {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
+                margin-bottom: 6px;
+            }
+            .hud-metric:last-child {
+                margin-bottom: 0;
+            }
+
+            /* Sidebar en móvil */
+            .sidebar {
+                width: 85%;
+                max-width: 320px;
             }
         }
 
-        @media (max-width: 576px) {
-            /* Celulares muy pequeños */
+        @media (max-width: 480px) {
+            header {
+                padding: 0 12px;
+            }
+            .logo-title {
+                font-size: 0.9rem;
+            }
+            .logo-symbol {
+                width: 20px;
+                height: 20px;
+            }
+
+            .main-viewport {
+                padding: 10px;
+            }
+
+            /* Canvas más pequeño en phones */
             #canvas-wrapper {
-                transform: scale(0.48);
+                max-width: 320px;
+            }
+
+            #hud {
+                padding: 10px 8px;
+            }
+            .hud-metric {
+                font-size: 0.7rem;
+            }
+            #lbl-clase {
+                font-size: 0.85rem !important;
+            }
+
+            /* Classes grid más compacto */
+            .classes-grid {
+                gap: 5px;
+            }
+            .class-badge {
+                font-size: 0.65rem;
+                padding: 5px 3px;
+            }
+
+            /* Sliders más grandes para touch */
+            .cyber-slider {
+                height: 6px;
+            }
+            .cyber-slider::-webkit-slider-thumb {
+                width: 20px;
+                height: 20px;
             }
         }
 
@@ -661,6 +760,9 @@
     </header>
 
     <div class="app-container">
+        <!-- Overlay para sidebar en móvil -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
         <!-- BARRA LATERAL DE CONTROL (SIDEBAR) -->
         <aside class="sidebar" id="control-sidebar">
             <div class="sidebar-header">
@@ -766,6 +868,7 @@
         const btnCollapseSidebar = document.getElementById('btn-collapse-sidebar');
         const sidebarExpandTab = document.getElementById('sidebar-expand-tab');
         const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
 
         const sliderParticles = document.getElementById('slider-particles');
         const valParticles = document.getElementById('val-particles');
@@ -793,9 +896,22 @@
         });
 
         // Menú responsive para móviles
-        mobileNavToggle.addEventListener('click', () => {
+        function toggleMobileMenu() {
             mobileNavToggle.classList.toggle('active');
-            controlSidebar.classList.toggle('collapsed');
+            controlSidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+        }
+
+        mobileNavToggle.addEventListener('click', toggleMobileMenu);
+        sidebarOverlay.addEventListener('click', toggleMobileMenu);
+
+        // Cerrar sidebar con botón de colapsar en móvil
+        btnCollapseSidebar.addEventListener('click', () => {
+            if (window.innerWidth <= 992) {
+                toggleMobileMenu();
+            } else {
+                controlSidebar.classList.add('collapsed');
+            }
         });
 
         // ============================================================
@@ -852,7 +968,6 @@
         // ============================================================
         // INTERFAZ DE BADGES DE CLASE DETECTADA
         // ============================================================
-        // Observador que resalta el badge de la clase detectada en tiempo real
         setInterval(() => {
             if (typeof currentLabel !== 'undefined') {
                 const activeLabel = currentLabel.toLowerCase().trim();
@@ -865,12 +980,10 @@
                     }
                 });
 
-                // Cambiar dinámicamente el color del marco holográfico del canvas según la clase activa
                 if (typeof getClassParamsFor !== 'undefined') {
                     const params = getClassParamsFor(activeLabel);
                     const wrapper = document.getElementById('canvas-wrapper');
                     if (wrapper) {
-                        // Cambiar la variable CSS para el color neón dinámico del borde
                         wrapper.style.setProperty('--border-glow', `hsla(${params.h}, 100%, 50%, 0.4)`);
                     }
                 }
