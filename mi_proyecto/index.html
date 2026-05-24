@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA VECT-01 // Analizador de Partículas 3D</title>
+    <!-- Google Fonts: Rajdhani para títulos cyberpunk y Share Tech Mono para telemetría digital -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="libs/p5.min.js"></script>
+    <script src="libs/addons/p5.sound.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ml5@0.12.2/dist/ml5.min.js"></script>
+    <style>
+        /* ============================================================
+           SISTEMA DE DISEÑO Y PALETA DE COLORES (ESTILO ROON NEÓN)
+           ============================================================ */
+        :root {
+            --bg-deep: hsl(240, 16%, 5%);
+            --bg-panel: hsla(240, 14%, 8%, 0.85);
+            --bg-sidebar: hsl(240, 15%, 6%);
+            --border-glow: rgba(0, 255, 102, 0.15);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --neon-green: hsl(145, 100%, 50%);
+            --neon-cyan: hsl(190, 100%, 50%);
+            --neon-pink: hsl(330, 100%, 60%);
+            --text-main: hsl(0, 0%, 98%);
+            --text-muted: hsl(240, 4%, 65%);
+            --sidebar-width: 320px;
+            --navbar-height: 70px;
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scrollbar personalizado de alta gama */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-cyan);
+        }
+
+        /* ============================================================
+           BARRA DE NAVEGACIÓN SUPERIOR (NAV BAR)
+           ============================================================ */
+        header {
+            height: var(--navbar-height);
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-symbol {
+            width: 24px;
+            height: 24px;
+            border: 2.5px solid var(--neon-green);
+            border-radius: 4px;
+            position: relative;
+            animation: pulse-border 2s infinite ease-in-out;
+        }
+
+        .logo-symbol::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .logo-title {
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--text-main), var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-badge {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+            transition: var(--transition-smooth);
+        }
+
+        .led.led-online {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: blink-led 1.5s infinite;
+        }
+
+        .led.led-offline {
+            background-color: var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+
+        /* Botón de Menú de Hamburguesa para Móvil */
+        .mobile-toggle {
+            display: none;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            width: 30px;
+            height: 20px;
+            position: relative;
+        }
+
+        .mobile-toggle span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background-color: var(--text-main);
+            position: absolute;
+            transition: var(--transition-smooth);
+        }
+
+        .mobile-toggle span:nth-child(1) { top: 0; }
+        .mobile-toggle span:nth-child(2) { top: 9px; }
+        .mobile-toggle span:nth-child(3) { top: 18px; }
+
+        .mobile-toggle.active span:nth-child(1) { transform: rotate(45deg); top: 9px; }
+        .mobile-toggle.active span:nth-child(2) { opacity: 0; }
+        .mobile-toggle.active span:nth-child(3) { transform: rotate(-45deg); top: 9px; }
+
+        /* ============================================================
+           CONTENEDOR PRINCIPAL
+           ============================================================ */
+        .app-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ============================================================
+           BARRA LATERAL DE CONTROL (SIDEBAR COLOPSABLE)
+           ============================================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition-smooth);
+            z-index: 90;
+        }
+
+        .sidebar.collapsed {
+            margin-left: calc(-1 * var(--sidebar-width));
+        }
+
+        .sidebar-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--neon-cyan);
+        }
+
+        .collapse-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            transition: var(--transition-smooth);
+        }
+
+        .collapse-btn:hover {
+            color: var(--neon-cyan);
+        }
+
+        /* Contenido de la Sidebar */
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        .sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 6px;
+            font-weight: 600;
+        }
+
+        /* Sliders y Switches Reactivos */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-main);
+        }
+
+        .control-value {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--neon-cyan);
+        }
+
+        .cyber-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            transition: var(--transition-smooth);
+        }
+
+        .cyber-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--neon-cyan);
+            transition: var(--transition-smooth);
+        }
+
+        .cyber-slider::-webkit-slider-thumb:hover {
+            background: var(--text-main);
+            box-shadow: 0 0 12px #fff;
+        }
+
+        /* Switch tipo Cyber Toggle */
+        .switch-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cyber-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .cyber-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 34px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-muted);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        .cyber-switch input:checked + .switch-slider {
+            background-color: rgba(0, 255, 102, 0.15);
+            border-color: var(--neon-green);
+        }
+
+        .cyber-switch input:checked + .switch-slider:before {
+            transform: translateX(22px);
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        /* Botón Futurista */
+        .cyber-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            padding: 12px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cyber-btn:hover {
+            background: rgba(0, 255, 102, 0.08);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.15);
+        }
+
+        .cyber-btn.btn-inactive {
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        .cyber-btn.btn-inactive:hover {
+            background: rgba(255, 0, 100, 0.08);
+            box-shadow: 0 0 15px rgba(255, 0, 100, 0.15);
+        }
+
+        /* Lista de clases detectables */
+        .classes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .class-badge {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-subtle);
+            padding: 6px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-family: 'Share Tech Mono', monospace;
+            transition: var(--transition-smooth);
+        }
+
+        .class-badge.active-badge {
+            background: rgba(0, 255, 180, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 180, 0.15);
+        }
+
+        /* ============================================================
+           ÁREA DEL CANVAS CENTRAL (ESCENARIO 3D)
+           ============================================================ */
+        .main-viewport {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            position: relative;
+            background: radial-gradient(circle at center, hsl(240, 15%, 8%) 0%, var(--bg-deep) 100%);
+        }
+
+        /* Contenedor Flotante de Toggle de Sidebar para Escritorio */
+        .sidebar-tab {
+            position: absolute;
+            left: 0;
+            top: 20px;
+            z-index: 95;
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-subtle);
+            border-left: none;
+            padding: 8px 12px;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: var(--transition-smooth);
+            display: none;
+        }
+
+        .sidebar.collapsed ~ .sidebar-tab {
+            display: block;
+        }
+
+        .sidebar-tab:hover {
+            color: var(--neon-cyan);
+            background: rgba(255,255,255,0.03);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Contenedor del Canvas de p5.js con marco holográfico */
+        #canvas-wrapper {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 
+                        0 0 1px 1px rgba(255,255,255,0.08);
+            transition: var(--transition-smooth);
+        }
+
+        #canvas-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 1.5px solid var(--border-glow);
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: inset 0 0 20px rgba(0, 255, 102, 0.05);
+            transition: var(--transition-smooth);
+        }
+
+        /* HUD Holográfico con Glassmorphism extremo */
+        #hud {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            color: var(--neon-green);
+            background: rgba(10, 10, 14, 0.7);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            min-width: 280px;
+            pointer-events: none;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8), 
+                        inset 0 0 10px rgba(255,255,255,0.02);
+            z-index: 15;
+            font-family: 'Share Tech Mono', monospace;
+            transition: var(--transition-smooth);
+        }
+
+        .hud-metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            align-items: center;
+        }
+
+        .hud-metric:last-child {
+            margin-bottom: 0;
+        }
+
+        .hud-label {
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .value {
+            font-weight: bold;
+            color: var(--text-main);
+            text-shadow: 0 0 8px rgba(255,255,255,0.3);
+        }
+
+        #lbl-clase {
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0, 255, 180, 0.4);
+            font-size: 1rem;
+        }
+
+        #lbl-certeza {
+            color: var(--neon-green);
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+        }
+
+        #lbl-modo {
+            color: var(--text-main);
+        }
+
+        /* ============================================================
+           MEDIA QUERIES - DISEÑO RESPONSIVO MÓVIL
+           ============================================================ */
+        @media (max-width: 992px) {
+            /* Escritorios pequeños y Tablets */
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                height: 100%;
+                box-shadow: 10px 0 30px rgba(0,0,0,0.6);
+            }
+            .sidebar.collapsed {
+                transform: translateX(-100%);
+                margin-left: 0;
+            }
+            .sidebar-tab {
+                display: none !important; /* Usar el botón de la navbar en su lugar */
+            }
+            .mobile-toggle {
+                display: block;
+            }
+            #canvas-wrapper {
+                transform: scale(0.9);
+            }
+        }
+
+        @media (max-width: 768px) {
+            /* Teléfonos móviles */
+            header {
+                padding: 0 16px;
+            }
+            .logo-title {
+                font-size: 1.1rem;
+            }
+            .system-status {
+                display: none; /* Ahorrar espacio en móvil */
+            }
+            .main-viewport {
+                padding: 10px;
+            }
+            #canvas-wrapper {
+                transform: scale(0.7);
+                max-width: 100vw;
+            }
+            #hud {
+                bottom: 12px;
+                left: 12px;
+                right: 12px;
+                min-width: 0;
+                padding: 12px;
+            }
+            .hud-metric {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            /* Celulares muy pequeños */
+            #canvas-wrapper {
+                transform: scale(0.48);
+            }
+        }
+
+        /* ============================================================
+           ANIMACIONES CLAVE
+           ============================================================ */
+        @keyframes pulse-border {
+            0%, 100% { border-color: var(--neon-green); box-shadow: 0 0 5px var(--neon-green); }
+            50% { border-color: var(--neon-cyan); box-shadow: 0 0 12px var(--neon-cyan); }
+        }
+
+        @keyframes blink-led {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+    <header>
+        <div class="header-logo">
+            <div class="logo-symbol"></div>
+            <h1 class="logo-title">SISTEMA VECT-01</h1>
+        </div>
+        <div class="system-status">
+            <div class="status-badge">
+                <span>ESTADO:</span>
+                <span id="txt-status" style="color: var(--neon-green);">ONLINE</span>
+                <div id="led-status" class="led led-online"></div>
+            </div>
+            <div class="status-badge">
+                <span>MOTOR:</span>
+                <span style="color: var(--neon-cyan);">P5 // ML5</span>
+            </div>
+        </div>
+        <button class="mobile-toggle" id="mobile-nav-toggle" aria-label="Toggle Navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </header>
+
+    <div class="app-container">
+        <!-- BARRA LATERAL DE CONTROL (SIDEBAR) -->
+        <aside class="sidebar" id="control-sidebar">
+            <div class="sidebar-header">
+                <h2>TELEMETRÍA Y CONTROL</h2>
+                <button class="collapse-btn" id="btn-collapse-sidebar" title="Ocultar Panel">
+                    &#x276e;
+                </button>
+            </div>
+            <div class="sidebar-content">
+                <!-- SECCIÓN DE CONTROLES REACTIVOS -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Parámetros del Sistema</h3>
+                    
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Densidad Estelar</span>
+                            <span class="control-value" id="val-particles">300</span>
+                        </div>
+                        <input type="range" id="slider-particles" class="cyber-slider" min="0" max="300" value="300">
+                    </div>
+
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Rotación Central</span>
+                            <span class="control-value" id="val-rotation">15</span>
+                        </div>
+                        <input type="range" id="slider-rotation" class="cyber-slider" min="0" max="50" value="15">
+                    </div>
+
+                    <div class="switch-container">
+                        <span class="control-label">Oscilación 3D (Wobble)</span>
+                        <label class="cyber-switch">
+                            <input type="checkbox" id="switch-wobble" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE CÁMARA & PROCESADOR -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Procesador IA</h3>
+                    <button class="cyber-btn" id="btn-toggle-cam">
+                        <span>PAUSAR ANÁLISIS</span>
+                    </button>
+                </div>
+
+                <!-- SECCIÓN DE CLASES DETECTABLES -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section-title">Clases Programadas</h3>
+                    <div class="classes-grid" id="classes-list">
+                        <div class="class-badge" data-class="avion">Avión</div>
+                        <div class="class-badge" data-class="automovil">Automóvil</div>
+                        <div class="class-badge" data-class="pajaro">Pájaro</div>
+                        <div class="class-badge" data-class="gato">Gato</div>
+                        <div class="class-badge" data-class="venado">Venado</div>
+                        <div class="class-badge" data-class="perro">Perro</div>
+                        <div class="class-badge" data-class="rana">Rana</div>
+                        <div class="class-badge" data-class="caballo">Caballo</div>
+                        <div class="class-badge" data-class="barco">Barco</div>
+                        <div class="class-badge" data-class="camion">Camión</div>
+                        <div class="class-badge" data-class="mano">Mano</div>
+                        <div class="class-badge" data-class="persona">Persona</div>
+                        <div class="class-badge" data-class="objeto">Objeto</div>
+                        <div class="class-badge" data-class="fondo">Fondo</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- PESTAÑA PARA DESPLEGAR SIDEBAR CUANDO ESTÁ OCULTA (ESCRITORIO) -->
+        <div class="sidebar-tab" id="sidebar-expand-tab" title="Mostrar Panel de Control">
+            &#x276f;
+        </div>
+
+        <!-- ESCENARIO PRINCIPAL (VIEWPORT) -->
+        <main class="main-viewport">
+            <div id="canvas-wrapper">
+                <!-- EL HUD TELEMÉTRICO SOBRE EL CANVAS -->
+                <div id="hud">
+                    <div class="hud-metric">
+                        <span class="hud-label">VECTOR CLASIFICADO:</span>
+                        <span id="lbl-clase" class="value">INICIALIZANDO...</span>
+                    </div>
+                    <div class="hud-metric">
+                        <span class="hud-label">CONFIABILIDAD IA:</span>
+                        <span id="lbl-certeza" class="value">0.0%</span>
+                    </div>
+                    <div class="hud-metric">
+                        <span class="hud-label">SISTEMA VECTORIAL:</span>
+                        <span id="lbl-modo" class="value">ESPERANDO MODELO</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- CÓDIGO JS DEL DASHBOARD (INTERACTIVIDAD Y ENLACE DE VARIABLES) -->
+    <script>
+        // ============================================================
+        // ELEMENTOS DEL DOM
+        // ============================================================
+        const controlSidebar = document.getElementById('control-sidebar');
+        const btnCollapseSidebar = document.getElementById('btn-collapse-sidebar');
+        const sidebarExpandTab = document.getElementById('sidebar-expand-tab');
+        const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+
+        const sliderParticles = document.getElementById('slider-particles');
+        const valParticles = document.getElementById('val-particles');
+        const sliderRotation = document.getElementById('slider-rotation');
+        const valRotation = document.getElementById('val-rotation');
+        const switchWobble = document.getElementById('switch-wobble');
+        const btnToggleCam = document.getElementById('btn-toggle-cam');
+        const classBadges = document.querySelectorAll('.class-badge');
+
+        const ledStatus = document.getElementById('led-status');
+        const txtStatus = document.getElementById('txt-status');
+
+        // ============================================================
+        // LÓGICA DE INTERFAZ COLAPSABLE Y MÓVIL
+        // ============================================================
+        
+        // Colapsar sidebar en escritorio
+        btnCollapseSidebar.addEventListener('click', () => {
+            controlSidebar.classList.add('collapsed');
+        });
+
+        // Expandir sidebar desde la pestaña flotante
+        sidebarExpandTab.addEventListener('click', () => {
+            controlSidebar.classList.remove('collapsed');
+        });
+
+        // Menú responsive para móviles
+        mobileNavToggle.addEventListener('click', () => {
+            mobileNavToggle.classList.toggle('active');
+            controlSidebar.classList.toggle('collapsed');
+        });
+
+        // ============================================================
+        // CONEXIÓN DIRECTA DE CONTROLES HTML CON VARIABLES DE SKETCH.JS
+        // ============================================================
+
+        // Control de densidad estelar (Partículas de fondo)
+        sliderParticles.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            valParticles.innerText = val;
+            if (typeof particleCountLimit !== 'undefined') {
+                particleCountLimit = val;
+            }
+        });
+
+        // Control de velocidad de rotación central
+        sliderRotation.addEventListener('input', (e) => {
+            const rawVal = parseInt(e.target.value);
+            valRotation.innerText = rawVal;
+            if (typeof rotationSpeed !== 'undefined') {
+                // Mapear de entero [0-50] a flotante [0.0 - 0.05]
+                rotationSpeed = rawVal / 1000;
+            }
+        });
+
+        // Control de Wobble/Oscilación central
+        switchWobble.addEventListener('change', (e) => {
+            if (typeof isWobbleActive !== 'undefined') {
+                isWobbleActive = e.target.checked;
+            }
+        });
+
+        // Control de pausa/reanudación del procesador IA
+        btnToggleCam.addEventListener('click', () => {
+            if (typeof isCameraActive !== 'undefined') {
+                isCameraActive = !isCameraActive;
+                
+                if (isCameraActive) {
+                    btnToggleCam.innerText = "PAUSAR ANÁLISIS";
+                    btnToggleCam.classList.remove('btn-inactive');
+                    ledStatus.className = "led led-online";
+                    txtStatus.innerText = "ONLINE";
+                    txtStatus.style.color = "var(--neon-green)";
+                } else {
+                    btnToggleCam.innerText = "REANUDAR ANÁLISIS";
+                    btnToggleCam.classList.add('btn-inactive');
+                    ledStatus.className = "led led-offline";
+                    txtStatus.innerText = "PAUSADO";
+                    txtStatus.style.color = "var(--neon-pink)";
+                }
+            }
+        });
+
+        // ============================================================
+        // INTERFAZ DE BADGES DE CLASE DETECTADA
+        // ============================================================
+        // Observador que resalta el badge de la clase detectada en tiempo real
+        setInterval(() => {
+            if (typeof currentLabel !== 'undefined') {
+                const activeLabel = currentLabel.toLowerCase().trim();
+                classBadges.forEach(badge => {
+                    const badgeClass = badge.getAttribute('data-class');
+                    if (badgeClass === activeLabel) {
+                        badge.classList.add('active-badge');
+                    } else {
+                        badge.classList.remove('active-badge');
+                    }
+                });
+
+                // Cambiar dinámicamente el color del marco holográfico del canvas según la clase activa
+                if (typeof getClassParamsFor !== 'undefined') {
+                    const params = getClassParamsFor(activeLabel);
+                    const wrapper = document.getElementById('canvas-wrapper');
+                    if (wrapper) {
+                        // Cambiar la variable CSS para el color neón dinámico del borde
+                        wrapper.style.setProperty('--border-glow', `hsla(${params.h}, 100%, 50%, 0.4)`);
+                    }
+                }
+            }
+        }, 150);
+    </script>
+    <script src="sketch.js"></script>
+</body>
+</html>
