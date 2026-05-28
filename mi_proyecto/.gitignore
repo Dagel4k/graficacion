@@ -1,0 +1,6 @@
+# Ignorar carpeta de build
+dist/
+
+# Ignorar archivos temporales del sistema
+.DS_Store
+Thumbs.db

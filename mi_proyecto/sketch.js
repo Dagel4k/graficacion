@@ -2,7 +2,7 @@ let video;
 let classifier;
 let currentLabel = "Esperando Modelo...";
 let confidenceScore = 0;
-const modelSource = './my_model/';
+const modelSource = '/my_model/';
 const CONFIDENCE_THRESHOLD = 0.25;
 const UNKNOWN_LABEL = "desconocido";
 
