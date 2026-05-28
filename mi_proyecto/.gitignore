@@ -1,6 +1,9 @@
 # Ignorar carpeta de build
 dist/
 
+# Ignorar node_modules
+node_modules/
+
 # Ignorar archivos temporales del sistema
 .DS_Store
 Thumbs.db
